@@ -1,0 +1,24 @@
+# Function to calculate Manhattan distance
+# abs() function calculate the absolute difference
+# between corresponding vector elements
+# sum() function calculates the sum of the
+# absolute difference between
+# corresponding elements of vect1 and vect2
+manhattanDistance <- function(vect1, vect2){
+	dist <- abs(vect1 - vect2)
+	dist <- sum(dist)
+	return(dist)
+}
+
+# Initializing a vector
+vect1 <- c(3, 6, 8, 9)
+
+# Initializing another vector
+vect2 <- c(1, 7, 8, 10)
+
+
+print("Manhattan distance between vect1 and vect2 is: ")
+
+# Call the function to calculate Manhattan
+# distance between vectors
+manhattanDistance(vect1, vect2)
