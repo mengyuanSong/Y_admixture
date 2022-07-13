@@ -1,114 +1,100 @@
+import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.datasets import load_digits
-from scipy.spatial.distance import pdist
-from sklearn.manifold.t_sne import _joint_probabilities
-from scipy import linalg
-from sklearn.metrics import pairwise_distances
-from scipy.spatial.distance import squareform
-from sklearn.manifold import TSNE
-from matplotlib import pyplot as plt
-import seaborn as sns
-sns.set(rc={'figure.figsize':(11.7,8.27)})
-palette = sns.color_palette("bright", 10)
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn import manifold
+import readData
 
-X, y = load_digits(return_X_y=True)
+file = './example_file.xlsx'
+data,pop_idx, pop_regi_idx, pop_regi_name_idx, unique_pop, unique_regi= readData.readExcelData(file)
+NUM_POPU = len(unique_pop)
+NUM_REGION = sum([len(x) for x in pop_regi_name_idx])
 
-MACHINE_EPSILON = np.finfo(np.double).eps
-n_components = 2
-perplexity = 30
+def lda(x,y,n_compoments):
+    lda = LinearDiscriminantAnalysis(n_components=n_compoments)
+    lda.fit(x, y)
+    return lda.transform(x)
 
-def fit(X):
-    n_samples = X.shape[0]
-    
-    # Compute euclidean distance
-    distances = pairwise_distances(X, metric='euclidean', squared=True)
-    
-    # Compute joint probabilities p_ij from distances.
-    P = _joint_probabilities(distances=distances, desired_perplexity=perplexity, verbose=False)
-    
-    # The embedding is initialized with iid samples from Gaussians with standard deviation 1e-4.
-    X_embedded = 1e-4 * np.random.mtrand._rand.randn(n_samples, n_components).astype(np.float32)
-    
-    # degrees_of_freedom = n_components - 1 comes from
-    # "Learning a Parametric Embedding by Preserving Local Structure"
-    # Laurens van der Maaten, 2009.
-    degrees_of_freedom = max(n_components - 1, 1)
-    
-    return _tsne(P, degrees_of_freedom, n_samples, X_embedded=X_embedded)
-def _tsne(P, degrees_of_freedom, n_samples, X_embedded):
-params = X_embedded.ravel()
-    
-    obj_func = _kl_divergence
-    
-    params = _gradient_descent(obj_func, params, [P, degrees_of_freedom, n_samples, n_components])
-        
-    X_embedded = params.reshape(n_samples, n_components)
-return X_embedded
->>> x = np.array([[1, 2, 3], [4, 5, 6]])
->>> np.ravel(x)
-array([1, 2, 3, 4, 5, 6])
-def _kl_divergence(params, P, degrees_of_freedom, n_samples, n_components):
-    X_embedded = params.reshape(n_samples, n_components)
-    
-    dist = pdist(X_embedded, "sqeuclidean")
-    dist /= degrees_of_freedom
-    dist += 1.
-    dist **= (degrees_of_freedom + 1.0) / -2.0
-    Q = np.maximum(dist / (2.0 * np.sum(dist)), MACHINE_EPSILON)
-    
-    # Kullback-Leibler divergence of P and Q
-    kl_divergence = 2.0 * np.dot(P, np.log(np.maximum(P, MACHINE_EPSILON) / Q))
-    
-    # Gradient: dC/dY
-    grad = np.ndarray((n_samples, n_components), dtype=params.dtype)
-    PQd = squareform((P - Q) * dist)
-    for i in range(n_samples):
-        grad[i] = np.dot(np.ravel(PQd[i], order='K'),
-                         X_embedded[i] - X_embedded)
-    grad = grad.ravel()
-    c = 2.0 * (degrees_of_freedom + 1.0) / degrees_of_freedom
-    grad *= c
-return kl_divergence, grad
-def _gradient_descent(obj_func, p0, args, it=0, n_iter=1000,
-                      n_iter_check=1, n_iter_without_progress=300,
-                      momentum=0.8, learning_rate=200.0, min_gain=0.01,
-                      min_grad_norm=1e-7):
-    
-    p = p0.copy().ravel()
-    update = np.zeros_like(p)
-    gains = np.ones_like(p)
-    error = np.finfo(np.float).max
-    best_error = np.finfo(np.float).max
-    best_iter = i = it
-    
-    for i in range(it, n_iter):
-error, grad = obj_func(p, *args)
-grad_norm = linalg.norm(grad)
-inc = update * grad < 0.0
-        dec = np.invert(inc)
-        gains[inc] += 0.2
-        gains[dec] *= 0.8
-        np.clip(gains, min_gain, np.inf, out=gains)
-        grad *= gains
-        update = momentum * update - learning_rate * grad
-        p += update
-print("[t-SNE] Iteration %d: error = %.7f,"
-                      " gradient norm = %.7f"
-                      % (i + 1, error, grad_norm))
-        
-        if error < best_error:
-                best_error = error
-                best_iter = i
-        elif i - best_iter > n_iter_without_progress:
-            break
-        
-        if grad_norm <= min_grad_norm:
-            break
-return p
-X_embedded = fit(X)
-sns.scatterplot(X_embedded[:,0], X_embedded[:,1], hue=y, legend='full', palette=palette)
+def plot_embedding(X,label,label_name,title = None):
+    x_min,x_max = np.min(X,0),np.max(X,0)
+    X = (X-x_min)/(x_max-x_min)
 
-tsne = TSNE()
-X_embedded = tsne.fit_transform(X)
+    plt.figure()
+    ax = plt.subplot(111)
+    scatter_size = 25
+    if len(label_name)==NUM_POPU:
+        color = ['steelblue','lawngreen','violet','orangeRed']
+    elif len(label_name) ==NUM_REGION:
+        color = ['black', 'dimgray', 'gray', 'silver', 'lightcoral', 'brown', 'maroon', 'red', 'mistyrose',
+                  'darksalmon', 'sienna', 'saddlebrown', 'peru',
+                 'darkorange', 'tan', 'orange', 'darkgoldenrod', 'darkkhaki', 'olive', 'y', 'chartreuse',
+                  'darkseagreen',
+                 'limegreen', 'mediumspringgreen', 'turquoise', 'paleturquoise', 'teal', 'cyan', 'cadetblue',
+                  'deepskyblue', 'lightskyblue', 'steelblue', 'dodgerblue',
+                 'darkslateblue', 'blueviolet', 'violet', 'mediumvioletred', 'pink']
+    else:
+        color = ['steelblue','lawngreen','violet','orangeRed', 'greenyellow', 'peru',  'lightsteelblue','saddlebrown','slateblue',
+                      'lightseagreen', 'purple', 'cyan', 'olivedrab', 'firebrick',
+                       'slategray', 'cadetblue',
+                     'darkgreen', 'gold', 'magenta', 'goldenrod', 'blue',
+                        'black']
+        scatter_size = 40
+    anno = []
+    for x in range(max(label)+1):
+        index = [i for (i, v) in enumerate(label) if v == x]
+        anno.append(plt.scatter(X[index,0], X[index,1], marker='.', color=color[x],s= scatter_size))
+    plt.legend(anno, [i for i in label_name],loc='upper right',fontsize=10)
+    plt.xticks([]),plt.yticks([])
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    if title:
+        plt.title(title)
+    plt.show()
 
-sns.scatterplot(X_embedded[:,0], X_embedded[:,1], hue=y, legend='full', palette=palette)
+def tsne_plot(x,y,pop):
+    tsne = manifold.TSNE(n_components=2, init='pca', random_state=0)
+    X_sne = tsne.fit_transform(x)
+    plot_embedding(X_sne, y, pop, '')
+    plt.show()
+
+#draw total population
+group = [0 for _ in range(len(data))]
+for i in range(len(pop_idx)):
+    for k in pop_idx[i]:
+        group[k] = i
+y = group
+x = data
+# tsne dimension reduction
+tsne_plot(x,y,unique_pop)
+
+
+#draw total region
+region = []
+group = [0 for _ in range(len(data))]
+class_num = 0
+for i in range(len(pop_idx)):
+    for j in range(len(pop_regi_idx[i])):
+        for k in pop_regi_idx[i][j]:
+            group[k] = class_num
+        class_num+=1
+        region.append(unique_pop[i]+'_'+unique_regi[pop_regi_name_idx[i][j]])
+y = group
+x = data
+tsne_plot(x,y,region)
+
+
+#draw each region of each population
+for i in range(len(pop_regi_idx)):
+    x = []
+    y = []
+    for j in range(len(pop_regi_idx[i])):
+        x += [data[x] for x in pop_regi_idx[i][j]]
+        y+=[pop_regi_name_idx[i][j] for _ in range(len(pop_regi_idx[i][j]))]
+
+    label_trans_dict = dict(zip(np.unique(y), range(len(np.unique(y)))))
+    label_trans = [label_trans_dict[i] for i in y]
+    y = label_trans
+
+    pop = [unique_regi[x] for x in pop_regi_name_idx[i]]
+    tsne_plot(x, y, pop)
