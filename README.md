@@ -3,6 +3,7 @@ This folder contains example codes for analyzing admixture patterns from the per
 
 Dependence
 python3.6
+R4.1.0
 
 step1. Prepare data set
 prepare your data set which contains multi excel files. As shown in the 'dataset_example' folder, each file contains multi samples and each sample has multi dimensions. 
